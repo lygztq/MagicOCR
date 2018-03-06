@@ -2,6 +2,7 @@ import os
 import tensorflow as tf 
 from tensorflow.contrib import layers
 from tensorflow.contrib import rnn
+import config
 
 class CRNN:
     def __init__(self, batch_size, data, label):
@@ -10,6 +11,9 @@ class CRNN:
         self.label = label
 
         self.input = tf.placeholder(tf.float32, [self.batch_size, 32, -1, 1])
+        self.target = tf.sparse_placeholder(tf.int32, [None])
+        self.seqLength = tf.placeholder(tf.int32, [None])
+
         self.build_model(self.input)
     
     def build_model(self, input):
@@ -40,9 +44,39 @@ class CRNN:
         # BiLSTM
         forward_cell = rnn.BasicLSTMCell(256)  # Initialize the basic LSTM cell
         backward_cell = rnn.BasicLSTMCell(256)  
-        self.outputs, temp1, temp2 = rnn.static_bidirectional_rnn(forward_cell, backward_cell, sequlize_2, dtype=tf.float32)
+        rnn_outputs, temp1, temp2 = rnn.static_bidirectional_rnn(forward_cell, backward_cell, sequlize_2, dtype=tf.float32)
+
+        logits = tf.reshape(rnn_outputs, [-1, 512])
+        weight = tf.Variable(tf.truncated_normal([512, config.CHAR_NUMBERS], stddev=0.1), name="weight")
+        bias = tf.Variable(tf.constant(0., shape=[config.CHAR_NUMBERS]), name="bias")
+
+        logits = tf.matmul(logits, weight) + bias  # https://docs.scipy.org/doc/numpy/user/basics.broadcasting.html
+        logits = tf.reshape(logits, [self.batch_size, -1, config.CHAR_NUMBERS])  # [batch_size, 1, CHAR_NUMBERS]
+
+        # outputs    [[[1], [1], ... batch_size number ..., [1]], ... CHAR_NUMBER ... ]   '1' stands predict char with dtype=tf.int32
+        predict_out = tf.transpose(logits, (1, 0, 2))  #  Permutes the dimensions according to perm(axis location arrange)
+
+        # loss value to be optimized
+        self.loss = tf.reduce_mean(tf.nn.ctc_loss(self.target, self.predict_out, self.seqLength))
+
+        # the predict string
+        self.predict_string, prob = tf.nn.ctc_beam_search_decoder(predict_out, self.seqLength)
+
+        # accuracy for string predict
+        self.acc = tf.reduce_mean(tf.edit_distance(tf.cast(self.predict_string[0], tf.int32), self.targets))
+
+    # train and save model
+    def train(self):
+        pass
     
-    
+    # test the trained model
+    def test(self):
+        pass        
+
+
+
+
+
 
 
 

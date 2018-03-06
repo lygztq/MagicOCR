@@ -1,0 +1,3 @@
+
+
+CHAR_NUMBERS = 100
