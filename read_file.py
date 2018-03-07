@@ -4,17 +4,31 @@ import sys
 
 def get_names(text_dir):
 	"""
-	Return the list of the name of data
+	Return the list of the name of data. Sub-folders are ignored.
 
 	args:
 		text_dir: the dir that contain the txt files
 	"""
 	names = []
-	for root, _, files in os.walk(text_dir):
+	for root, _, files in os.walk(text_dir, topdown = True):
 		names = files
+		break
 	for i in range(len(names)):
 		names[i] = os.path.splitext(names[i])[0]
 	return names
+
+
+def get_names_and_extensions(image_dir):
+	"""
+	Return the list of file names and their respective extensions under image_dir.
+	Sub-folders are ignored.
+
+	:param image_dir: The directory that all images are in.
+	:return: A list of tuples of the format (name, extension).
+	         The names doesn't contain any parent directories.
+	"""
+	for root, _, files in os.walk(image_dir, topdown = True):
+		return [os.path.splitext(x) for x in files]
 
 
 def get_box_inf(text_dir, name):
