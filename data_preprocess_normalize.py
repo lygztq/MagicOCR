@@ -68,7 +68,7 @@ def process_folders(text_folder, image_folder, target_image_folder, target_text_
 			counter += 1
 	with open(target_text_file, 'w') as fout:
 		print 'writing relationships'
-		fout.writelines(('{}\t{}'.format(k, v) for k, v in mapping.items()))
+		fout.writelines(('{}\t{}\n'.format(k, v) for k, v in mapping.items()))
 	print 'done'
 
 
