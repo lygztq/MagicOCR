@@ -5,7 +5,11 @@ import numpy as np
 from scipy import misc
 from scipy.ndimage import filters
 from PIL import Image
+import math
+import cv2
 import cPickle
+import mask
+import read_file
 
 IMAGE_DIR = "./data/test_image"
 TEXT_DIR = "./data/test_txt"
@@ -44,85 +48,72 @@ def binary_img(img):
 			else:
 				img[i,j] = 0
 
+def calculate_line(x1,y1,x2,y2):
+	k = (y2-y1)/(x2-x1)
+	b = y1 - k*x1
+	return [k,b]
+
+def calculate_y(x,k,b):
+	return k*x + b
+
+def distance(x1,y1,x2,y2):
+	return math.sqrt((x1-x2)*(x1-x2)+(y1-y2)*(y1-y2))
+
 
 def main():
-	# build the result dir
-	if not os.path.exists("./data/slices"):
-		os.mkdir("./data/slices")
+	names = read_file.get_names(TEXT_DIR)
+	total_num = len(names)
+	cnt = 0
 
-	# create the image path list and the true text list
-	img_path_list = []
 	true_txt_list = []
+	img_path_list = []
 
-	# first get the file name list in the TEXT_DIR
-	for root, _, files in os.walk(TEXT_DIR):
-		total_num = len(files)
-		total_cnt = 0
-		for f in files:
-			try:
-				pic_path = os.path.join(IMAGE_DIR, f[:-3]+'jpg')
-				file_path = os.path.join(TEXT_DIR, f)
+	for name in names:
+		cnt+=1
+		print "processing: %d / %d" % (cnt,total_num)
 
-				img = misc.imread(pic_path,mode='RGB')
-				img = rgb2grey(img)
-				file_contains = open(file_path)
+		# data informations
+		img_path = os.path.join(IMAGE_DIR, name+'.jpg')
+		points, texts = read_file.get_box_inf(TEXT_DIR, name)
 
-				cnt = 0
-				for i in file_contains:
-					i = i.split(',')
-					contain = i[8:] # the truth_ground text
-					contain = ','.join(contain)
-					#print contain
+		# open img
+		img = misc.imread(img_path)
+		img = rgb2grey(img)
+		# print points
 
-					contain = contain[:-1]
+		# mask the image
+		mask.mask_image(img, points)
 
-					# check whether the true txt is unclear(we don't use unclear subimage)
-					clear = False
-					for c in contain:
-						if c != '#':
-							clear = True
-					if not clear:
-						continue
+		for i in range(len(points)):
+			max_x = 0
+			min_x = 100000
+			max_y = 0
+			min_y = 100000
+			for pt in points[i]:
+				# find the boundary of subimage
+				max_x = max(pt[0],max_x)
+				max_y = max(pt[1],max_y)
+				min_x = min(pt[0],min_x)
+				min_y = min(pt[1],min_y)
+			
+			# avoid empty area
+			min_x = max(min_x-5,0)
+			min_y = max(min_y-5,0)
 
-					# the boundary of the subimage
-					bbox = i[:8]
-					bbox = map(float,bbox) # type convert
+			sub_image = img[int(min_y):int(max_y), int(min_x):int(max_x)]
+			sub_image = misc.imresize(sub_image,2.0)
+			sub_image_name = name + ('_%03d' % i) + '.jpg'
+			save_path = os.path.join("./data/slices", sub_image_name)
 
-					x_boundary = [int(bbox[0]+0.5), int(bbox[0]+0.5)]
-					y_boundary = [int(bbox[1]+0.5), int(bbox[1]+0.5)]
+			img_path_list.append(save_path)
+			true_txt_list.append(texts[i])
 
-					for b in range(0,8,2):
-						x_boundary[0] = min(x_boundary[0], int(bbox[b]+0.5))
-						x_boundary[1] = max(x_boundary[1], int(bbox[b]+0.5))
+			# save image
+			print save_path
+			misc.imsave(save_path, sub_image)
 
-					for b in range(1,8,2):
-						y_boundary[0] = min(y_boundary[0], int(bbox[b]+0.5))
-						y_boundary[1] = max(y_boundary[1], int(bbox[b]+0.5))
-
-					y_boundary[0] = max(y_boundary[0]-5, 0)
-					x_boundary[0] = max(x_boundary[0]-5, 0)
-
-					new_image = img[y_boundary[0]:y_boundary[1],x_boundary[0]:x_boundary[1]]
-					new_image_name = f[:-4] + ('_%03d' % cnt)
-
-					new_image = misc.imresize(new_image, 2.0)
-					#binary_img(new_image)
-					new_image = pow_trans(new_image)
-
-					new_image_path = os.path.join("./data/slices", new_image_name)
-					new_image_path = new_image_path+'.jpg'
-					
-					img_path_list.append(new_image_path)
-					true_txt_list.append(contain)
-
-					misc.imsave(new_image_path, new_image)
-					cnt+=1
-				total_cnt+=1
-				print "processing: %d / %d" % (total_cnt,total_num)
-			except:
-				print "get error in", f
 	cPickle.dump(img_path_list, open("./data/img_path_list.bin","wb"))
 	cPickle.dump(true_txt_list, open("./data/true_text_list.bin","wb"))
-
+	# new_image = misc.imrotate(new_image, angle=(math.atan(k)/math.pi)*180)
 if __name__ == '__main__':
 	main()
