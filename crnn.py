@@ -96,7 +96,30 @@ class CRNN:
     
     # test the trained model
     def test(self):
-        pass
+        with self.sess.as_default():
+            example_count = 0
+            total_error = 0
+            for batch_x, batch_y, batch_length in self.data.get_next_test_batch():  #TODO
+                data_targets = np.asarray([label_to_array(label, config.CHAR_NUMBERS) for label in batch_y])
+                data_targets = sparse_tuple_from(data_targets)
+                predict_str = self.sess.run(
+                    [self.decoded],
+                    feed_dict={self.inputs:batch_x, self.seq_len:batch_length}
+                )
+                example_count += len(batch_y)
+                total_error += np.sum(levenshtein(ground_truth_to_word(batch_y), ground_truth_to_word(decoded)))  # TODO
+            print "Error on test set: {}".format(total_error/example_count)
+        return None
+
+    def save(self):
+        saver = tf.train.Saver()
+        saver.save(self.sess, "model/crnn.model")
+    
+    def load(self):
+        ckpt = tf.train.latest_checkpoint("model")
+        if ckpt: saver.restore(self.sess, ckpt)
+
+                    
 
 
 
