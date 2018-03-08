@@ -7,21 +7,42 @@ from PIL import Image
 
 
 def transform_image(img, pts):
+	def det(v1, v2):
+		return v1[0] * v2[1] - v1[1] * v2[0]
 	"""
 	Transforms the given image using the given points, so that the points are at the four corners
 	of the image in the transformed image.
 
 	:param img: The image data.
-	:param pts: The four points in counter-clockwise order, and the first point denotes the desired
-	            top-left corner of the transformed image.
+	:param pts: The four points. Preferably, the points should be in counter-clockwise order,
+	            and the first point should denote the desired top-left corner of the transformed image.
 	:return: The transformed image.
 	"""
+	TANGENT_UPDOWN = 1
+	TANGENT_SIDE = 0.5
+
+	# try to correct clockwise or upside-down rectangles
 	p1, p2, p3 = np.array(pts[0]), np.array(pts[1]), np.array(pts[2])
-	tgwidth, tgheight = int(math.ceil(np.linalg.norm(p3 - p2))), int(math.ceil(np.linalg.norm(p2 - p1)))
+	d12, d23 = p2 - p1, p3 - p2
+	if det(d12, d23) > 0.0:  # clockwise
+		pts[1], pts[3] = pts[3], pts[1]
+		p2 = np.array(pts[1])
+		d12, d23 = p2 - p1, p3 - p2
+	heightv, widthv = np.linalg.norm(d12), np.linalg.norm(d23)
+	if d12[1] < 0 and d12[1] * TANGENT_UPDOWN > -abs(d12[0]):  # upside-down
+		pts = pts[2:] + pts[:2]
+	elif abs(d12[0]) * TANGENT_SIDE > d12[1] and widthv < heightv:  # side
+		if d12[0] < 0:
+			pts = pts[1:] + pts[:1]
+		else:
+			pts = pts[3:] + pts[:3]
+		widthv, heightv = heightv, widthv
+	# transform the image
+	tgwidth, tgheight = int(widthv), int(heightv)
 	mat = cv2.getPerspectiveTransform(
 		np.float32([pts[0], pts[1], pts[3], pts[2]]),
 		np.float32([[0, 0], [0, tgheight], [tgwidth, 0], [tgwidth, tgheight]])
-	)
+	)  # the transformation matrix
 	return cv2.warpPerspective(img, mat, (tgwidth, tgheight))
 
 
