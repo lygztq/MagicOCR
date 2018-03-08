@@ -1,14 +1,43 @@
 import os
-import math
 import cv2
-import read_file
+
 import numpy as np
 from PIL import Image
 
+import loader
+from MagicOCR import utils
+
+def rgb2grey(img):
+	return 0.299 * img[:, :, 0] + 0.587 * img[:, :, 1] + 0.114 * img[:, :, 2]
+
+def pow_trans(img):
+	# fix the image after resize
+	max_elem = np.max(img)
+	min_elem = np.min(img)
+	diff = max_elem - min_elem
+	img = (img - min_elem) * 1.0 / diff * 255
+	return img
+
+def binary_img(img):
+	total = 0
+	cnt = int(img.shape[0]) * int(img.shape[1])
+	for i in xrange(img.shape[0]):
+		for j in xrange(img.shape[1]):
+			total += int(img[i, j])
+		# ave = ave + (img[i,j]-ave)/(cnt+1)
+		# cnt+=1
+	ave = total / cnt
+
+	for i in xrange(img.shape[0]):
+		for j in xrange(img.shape[1]):
+			if img[i, j] >= ave:
+				img[i, j] = 255
+			else:
+				img[i, j] = 0
+
+IMAGE_PROCESS_METHOD = rgb2grey
 
 def transform_image(img, pts):
-	def det(v1, v2):
-		return v1[0] * v2[1] - v1[1] * v2[0]
 	"""
 	Transforms the given image using the given points, so that the points are at the four corners
 	of the image in the transformed image.
@@ -24,7 +53,7 @@ def transform_image(img, pts):
 	# try to correct clockwise or upside-down rectangles
 	p1, p2, p3 = np.array(pts[0]), np.array(pts[1]), np.array(pts[2])
 	d12, d23 = p2 - p1, p3 - p2
-	if det(d12, d23) > 0.0:  # clockwise
+	if utils.det(d12, d23) > 0.0:  # clockwise
 		pts[1], pts[3] = pts[3], pts[1]
 		p2 = np.array(pts[1])
 		d12, d23 = p2 - p1, p3 - p2
@@ -45,7 +74,6 @@ def transform_image(img, pts):
 	)  # the transformation matrix
 	return cv2.warpPerspective(img, mat, (tgwidth, tgheight))
 
-
 def process_image(name, ext, text_folder, img_folder):
 	"""
 	Calls transform_image to transform all text regions in the given image, with information in the
@@ -58,12 +86,11 @@ def process_image(name, ext, text_folder, img_folder):
 	:return: A list of tuples of the format (image, text). The text is the corresponding label in the text file.
 	"""
 	img = np.array(Image.open(os.path.join(img_folder, name + ext)))
-	points, texts = read_file.get_box_inf(text_folder, name)
+	points, texts = loader.load_text_regions(text_folder, name)
 	result = []
 	for i in range(len(points)):
 		result.append((transform_image(img, points[i]), texts[i]))
 	return result
-
 
 def process_folders(text_folder, image_folder, target_image_folder, target_text_file):
 	"""
@@ -76,7 +103,7 @@ def process_folders(text_folder, image_folder, target_image_folder, target_text_
 	:param target_text_file: The text file in which all image-text relationships will be stored.
 	"""
 	mapping = {}
-	imglist = read_file.get_names_and_extensions(image_folder)
+	imglist = loader.get_names_and_extensions(image_folder)
 	i = 0
 	for name, ext in imglist:
 		i += 1
@@ -84,6 +111,8 @@ def process_folders(text_folder, image_folder, target_image_folder, target_text_
 		counter = 0
 		for img, text in process_image(name, ext, text_folder, image_folder):
 			newname = '{}_{:03}{}'.format(name, counter, ext)
+			if len(img.shape) == 3 and img.shape[-1] >= 3:  # not gray scale, need conversion
+				img = IMAGE_PROCESS_METHOD(img)
 			cv2.imwrite(os.path.join(target_image_folder, newname), img)
 			mapping[newname] = text
 			counter += 1
@@ -92,14 +121,12 @@ def process_folders(text_folder, image_folder, target_image_folder, target_text_
 		fout.writelines(('{}\t{}\n'.format(k, v) for k, v in mapping.items()))
 	print 'done'
 
-
 def main():
 	try:
 		os.mkdir('./test/')
 	except Exception as e:
 		print e.message
-	process_folders('../data/txt_1000', '../data/image_1000', './test/', './test_data')
-
+	process_folders('../../data/txt_1000', '../../data/image_1000', './test/', './test_data')
 
 if __name__ == '__main__':
 	main()

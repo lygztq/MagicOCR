@@ -1,22 +1,4 @@
 import os
-import sys
-
-
-def get_names(text_dir):
-	"""
-	Return the list of the name of data. Sub-folders are ignored.
-
-	args:
-		text_dir: the dir that contain the txt files
-	"""
-	names = []
-	for root, _, files in os.walk(text_dir, topdown = True):
-		names = files
-		break
-	for i in range(len(names)):
-		names[i] = os.path.splitext(names[i])[0]
-	return names
-
 
 def get_names_and_extensions(image_dir):
 	"""
@@ -30,8 +12,7 @@ def get_names_and_extensions(image_dir):
 	for root, _, files in os.walk(image_dir, topdown = True):
 		return [os.path.splitext(x) for x in files]
 
-
-def get_box_inf(text_dir, name):
+def load_text_regions(text_dir, name):
 	"""
 	Return the boundary points and true texts of one img
 
@@ -69,6 +50,3 @@ def get_box_inf(text_dir, name):
 
 		# return points, texts
 		return points, texts
-
-# if __name__ == '__main__':
-# 	get_box_inf('./data/txt_1000','TB1.3pkLXXXXXXjaFXXunYpLFXX')

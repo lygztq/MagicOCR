@@ -1,20 +1,21 @@
-import os
-import tensorflow as tf 
+import tensorflow as tf
 from tensorflow.contrib import layers
 from tensorflow.contrib import rnn
-from data_manager import DataManager
-import config
+import numpy as np
+
+from MagicOCR import config
+from MagicOCR.data_ops import manager
 from utils import label_to_array, levenshtein, sparse_tuple_from, ground_truth_to_word
 
 class CRNN(object):
     def __init__(self, batch_size, epoches, data_path):
         self.batch_size = batch_size
         self.epoches = epoches
-        self.data = DataManager(data_path, batch_size)
+        self.data = manager.DataManager(data_path, batch_size)
 
         self.sess = tf.Session()
 
-        with self.sess.as_default():   
+        with self.sess.as_default():
             self.inputs, self.targets, self.seq_len, self.logits, self.decoded, self.optimizer, self.accracy, self.losses,self.initlizer =  self.build_model()
             self.initlizer.run()
 
@@ -49,12 +50,12 @@ class CRNN(object):
 
         # BiLSTM
         forward_cell = rnn.BasicLSTMCell(256)  # Initialize the basic LSTM cell
-        backward_cell = rnn.BasicLSTMCell(256)  
+        backward_cell = rnn.BasicLSTMCell(256)
         rnn_outputs, temp1, temp2 = rnn.static_bidirectional_rnn(forward_cell, backward_cell, sequlize_2, dtype=tf.float32)
 
         logits = tf.reshape(rnn_outputs, [-1, 512])
-        weight = tf.Variable(tf.truncated_normal([512, config.CHAR_NUMBERS], stddev=0.1), name="weight")
-        bias = tf.Variable(tf.constant(0., shape=[config.CHAR_NUMBERS]), name="bias")
+        weight = tf.Variable(tf.truncated_normal([512, config.CHAR_NUMBERS], stddev=0.1), name= "weight")
+        bias = tf.Variable(tf.constant(0., shape=[config.CHAR_NUMBERS]), name= "bias")
 
         logits = tf.matmul(logits, weight) + bias  # https://docs.scipy.org/doc/numpy/user/basics.broadcasting.html
         logits = tf.reshape(logits, [self.batch_size, -1, config.CHAR_NUMBERS])  # [batch_size, 1, CHAR_NUMBERS]
@@ -74,7 +75,7 @@ class CRNN(object):
         # accuracy for string predict
         acc = tf.reduce_mean(tf.edit_distance(tf.cast(self.predict_string[0], tf.int32), target))
 
-        # init 
+        # init
         init = tf.global_variables_initializer()
 
         return input, target, seqLength, predict_out, predict_string, optimizer, acc, loss, init
@@ -94,7 +95,7 @@ class CRNN(object):
                     iteration_loss += loss_val
                 print "Iteration {} : loss: {}".format(i, iteration_loss)
         return None
-    
+
     # test the trained model
     def test(self):
         with self.sess.as_default():
@@ -115,12 +116,11 @@ class CRNN(object):
     def save(self):
         saver = tf.train.Saver()
         saver.save(self.sess, "model/crnn.model")
-    
+
     def load(self):
         ckpt = tf.train.latest_checkpoint("model")
         if ckpt: saver.restore(self.sess, ckpt)
 
-                    
 
 
 
@@ -130,6 +130,7 @@ class CRNN(object):
 
 
 
-        
+
+
 
 
