@@ -11,7 +11,7 @@ from utils import label_to_array, levenshtein, sparse_tuple_from, ground_truth_t
 MODEL_HYPER = None
 
 def start_train():
-	model = CRNN(MODEL_HYPER.batch_size, MODEL_HYPER.epoches, MODEL_HYPER.data_path)
+	model = CRNN(MODEL_HYPER.batch_size, MODEL_HYPER.epoches, MODEL_HYPER.data_path, MODEL_HYPER.log_path)
 	model.train()
 	model.save()
 

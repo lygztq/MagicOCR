@@ -8,7 +8,8 @@ from MagicOCR.data_ops import manager
 from utils import label_to_array, levenshtein, sparse_tuple_from, ground_truth_to_word
 
 class CRNN(object):
-    def __init__(self, batch_size, epoches, data_path):
+    def __init__(self, batch_size, epoches, data_path, log_path):
+        self.log_path = log_path
         self.batch_size = batch_size
         self.epoches = epoches
         self.data = manager.DataManager(data_path, batch_size)
@@ -16,7 +17,7 @@ class CRNN(object):
         self.sess = tf.Session()
 
         with self.sess.as_default():
-            self.inputs, self.targets, self.seq_len, self.logits, self.decoded, self.optimizer, self.accracy, self.losses,self.initlizer =  self.build_model()
+            self.inputs, self.targets, self.seq_len, self.logits, self.decoded, self.optimizer, self.accracy, self.losses,self.initlizer,self.summary =  self.build_model()
             self.initlizer.run()
 
     def build_model(self):
@@ -65,6 +66,7 @@ class CRNN(object):
 
         # loss value to be optimized
         loss = tf.reduce_mean(tf.nn.ctc_loss(target, self.predict_out, seqLength))
+        tf.summary.scalar("loss", loss)
 
         # optimizer
         optimizer = tf.train.MomentumOptimizer(0.01, 0.9).minimize(loss)
@@ -74,25 +76,32 @@ class CRNN(object):
 
         # accuracy for string predict
         acc = tf.reduce_mean(tf.edit_distance(tf.cast(self.predict_string[0], tf.int32), target))
+        tf.summary.scalar("accuracy", acc)
 
         # init
         init = tf.global_variables_initializer()
 
-        return input, target, seqLength, predict_out, predict_string, optimizer, acc, loss, init
+        # log file node
+        merge_summary = tf.summary.merge_all()
+
+        return input, target, seqLength, predict_out, predict_string, optimizer, acc, loss, init, merge_summary
 
     # train and save model
     def train(self):
         with self.sess.as_default():
-            for i in range(self.epoches):
+            # log file writer
+            log_writer = tf.summary.FileWriter(self.log_path, sess.graph)
+            for i in xrange(self.epoches): # use xrange to reduce the cost of memory
                 iteration_loss = 0
                 for batch_x, batch_y, batch_length in self.data.get_next_train_batch():  #TODO1
                     data_targets = np.asarray([label_to_array(label, config.CHAR_DICTIONARYS) for label in batch_y])
                     data_targets = sparse_tuple_from(data_targets)
-                    temp3, loss_val, predict_str = self.sess.run(
-                        [self.optimizer, self.losses, self.decoded],
+                    temp3, loss_val, predict_str, summary = self.sess.run(
+                        [self.optimizer, self.losses, self.decoded,self.summary],
                         feed_dict = {self.inputs:batch_x, self.targets:data_targets, self.seq_len:batch_length}
                     )
                     iteration_loss += loss_val
+                log_writer.add_summary(summary, i)
                 print "Iteration {} : loss: {}".format(i, iteration_loss)
         return None
 
