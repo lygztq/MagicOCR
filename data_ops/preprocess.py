@@ -3,12 +3,18 @@ import cv2
 
 import numpy as np
 from PIL import Image
+from scipy import misc
 
 import loader
 from MagicOCR import utils
 
 def rgb2grey(img):
-	return 0.299 * img[:, :, 0] + 0.587 * img[:, :, 1] + 0.114 * img[:, :, 2]
+	return resize(0.299 * img[:, :, 0] + 0.587 * img[:, :, 1] + 0.114 * img[:, :, 2], 32)
+
+def resize(img, width=32):
+	ratio = img.shape[0]*1.0/32
+	img = pow_trans(misc.resize(img, ratio))
+	return img
 
 def pow_trans(img):
 	# fix the image after resize
