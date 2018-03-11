@@ -26,9 +26,8 @@ class DataManager(object):
 		for filename, _ in self.records:
 			img = np.array(Image.open(os.path.join(data_path, filename)))
 			if len(img.shape) > 2 and img.shape[2] > 1:
-				img = img[::0].transpose((1, 0, 2))  # also convert to gray scale; not sure if redundant
+				img = img[::0]  # convert to gray scale; not sure if redundant
 			else:
-				img = img.transpose()
 				img = img.reshape(img.shape + (1,))
 			self.images.append(img)
 		test_set_len = int(len(self.records) * test_percentage)
