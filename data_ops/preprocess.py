@@ -16,6 +16,7 @@ def rgb2grey(img):
 
 def resize(img, width=RESIZE_WIDTH):
 	ratio = width*1.0/img.shape[0]
+	new_size = (width, max(int(ratio*img.shape[1]), 1))
 	#print ratio
 	img = pow_trans(misc.imresize(img, ratio, interp='bicubic'))
 	return img
@@ -25,6 +26,7 @@ def pow_trans(img):
 	max_elem = np.max(img)
 	min_elem = np.min(img)
 	diff = max_elem - min_elem
+	if diff==0: return img
 	img = (img - min_elem) * 1.0 / diff * 255
 	return img
 
@@ -120,26 +122,29 @@ def process_folders(text_folder, image_folder, target_image_folder, target_text_
 		print 'processing {} of {}'.format(i, len(imglist))
 		counter = 0
 		for img, text in process_image(name, ext, text_folder, image_folder):
-			newname_origin = '{}_{:03}_1{}'.format(name, counter, ext)
-			newname_rotate = '{}_{:03}_2{}'.format(name, counter, ext)
-			rotate_img = np.transpose(img,(1,0,2))
+			try:
+				newname_origin = '{}_{:03}_1{}'.format(name, counter, ext)
+				newname_rotate = '{}_{:03}_2{}'.format(name, counter, ext)
+				rotate_img = np.transpose(img,(1,0,2))
 
-			if len(img.shape) == 3 and img.shape[-1] >= 3:  # not gray scale, need conversion
-				img = IMAGE_PROCESS_METHOD(img)
-				rotate_img = IMAGE_PROCESS_METHOD(rotate_img)
-			flag1 = True
-			flag2 = True
-			if img.shape[0] < RESIZE_WIDTH/2 or img.shape[1] < RESIZE_WIDTH/2: flag1 = False
-			if rotate_img.shape[0] < RESIZE_WIDTH or rotate_img.shape[1] < RESIZE_WIDTH: flag2 = False
+				if len(img.shape) == 3 and img.shape[-1] >= 3:  # not gray scale, need conversion
+					img = IMAGE_PROCESS_METHOD(img)
+					rotate_img = IMAGE_PROCESS_METHOD(rotate_img)
+				flag1 = True
+				flag2 = True
+				if img.shape[0] < RESIZE_WIDTH/2 or img.shape[1] < RESIZE_WIDTH/2: flag1 = False
+				if rotate_img.shape[0] < RESIZE_WIDTH or rotate_img.shape[1] < RESIZE_WIDTH: flag2 = False
 
-			if flag1:
-				cv2.imwrite(os.path.join(target_image_folder, newname_origin), img)
-				mapping[newname_origin] = text
+				if flag1:
+					cv2.imwrite(os.path.join(target_image_folder, newname_origin), img)
+					mapping[newname_origin] = text
 
-			if flag2:
-				cv2.imwrite(os.path.join(target_image_folder, newname_rotate), rotate_img)
-				mapping[newname_rotate] = text
-			counter += 1
+				if flag2:
+					cv2.imwrite(os.path.join(target_image_folder, newname_rotate), rotate_img)
+					mapping[newname_rotate] = text
+				counter += 1
+			except Exception as e:
+				print "Error when processing: {}_{}".format(name, counter), "\terror: ", e.message 
 	with open(target_text_file, 'w') as fout:
 		print 'writing relationships'
 		fout.writelines(('{}\t{}\n'.format(k, v) for k, v in mapping.items()))
@@ -152,8 +157,8 @@ def main():
 		print e.message
 	if not os.path.exists('../data/slices'):
 		os.mkdir('../data/slices')
-	process_folders('../data/test_txt', '../data/test_image', '../data/slices', 'relationship')
-	#process_folders('../data/txt_1000', '../data/image_1000', '../data/slices', 'relationship')
+	process_folders('../data/test_txt', '../data/test_image', '../data/slices', '../data/relationship')
+	#process_folders('../data/txt_1000', '../data/image_1000', '../data/slices', '../data/relationship')
 	#process_folders('../../data/txt_1000', '../../data/image_1000', './test/', './test_data')
 
 if __name__ == '__main__':
