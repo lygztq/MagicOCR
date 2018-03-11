@@ -11,11 +11,11 @@ from utils import label_to_array, levenshtein, sparse_tuple_from, ground_truth_t
 MODEL_HYPER = None
 
 def start_train():
-	model = CRNN(MODEL_HYPER.batch_size, MODEL_HYPER.epoches, MODEL_HYPER.data_path, MODEL_HYPER.log_path)
+	model = CRNN(MODEL_HYPER.batch_size, MODEL_HYPER.epoches, MODEL_HYPER.data_path, MODEL_HYPER.text_path, MODEL_HYPER.log_path, MODEL_HYPER.model_path)
 	model.train()
 	model.save()
 
-def train(_):
+def train(_):	
 	# preprocessing something here before training
 	if tf.gfile.Exists(MODEL_HYPER.log_path):
 		tf.gfile.DeleteRecursively(MODEL_HYPER.log_path)
@@ -60,5 +60,12 @@ if __name__ == '__main__':
 		default=config.DEFAULT_MODEL_PATH,
 		help="the path that you store your models."
 	)
-	MODEL_HYPER = parser.parse_known_args()
+	parser.add_argument(
+		"--text_path",
+		type=str,
+		default=config.DEFAULT_TEXT_PATH,
+		help="text-image relationship file path."
+	)
+	MODEL_HYPER = parser.parse_args()
+	#print "!!!!!!!!!!!!!!!!!!!!",MODEL_HYPER.log_path
 	tf.app.run(main=train, argv=[sys.argv[0]])

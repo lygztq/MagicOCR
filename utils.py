@@ -1,4 +1,4 @@
-from MagicOCR import config
+import config
 import numpy as np
 
 def label_to_array(label, letters):
@@ -39,7 +39,7 @@ def levenshtein(s1, s2):
 	return previous_row[-1]
 
 def ground_truth_to_word(ground_truth):
-	return ''.join([config.CHAR_DICTIONARY[i] for i in ground_truth])
+	return ''.join([config.CHAR_DICTIONARYS[i] for i in ground_truth])
 
 def det(v1, v2):
 	"""

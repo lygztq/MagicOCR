@@ -1,4 +1,4 @@
-from MagicOCR import config
+import config
 import numpy as np
 
 def label_to_array(label, letters):

@@ -4,8 +4,6 @@ import random
 import numpy as np
 from PIL import Image
 
-from MagicOCR import utils, config
-
 class DataManager(object):
 	def __init__(self, data_path, text_path, test_percentage = 0.25):
 		"""
@@ -17,18 +15,16 @@ class DataManager(object):
 		"""
 		self.records = []
 		self.images = []
+		print text_path
 		with open(text_path, 'r') as fin:
 			for line in fin.readlines():
 				split = line.strip().split('\t')
 				assert len(split) >= 1
-				label = utils.label_to_array('\t'.join(split[1:]).decode('utf8'), config.CHAR_DICTIONARY)
-				self.records.append((split[0], label))
+				self.records.append((split[0], '\t'.join(split[1:])))
 		for filename, _ in self.records:
 			img = np.array(Image.open(os.path.join(data_path, filename)))
-			if len(img.shape) > 2 and img.shape[2] > 1:
-				img = img[::0]  # convert to gray scale; not sure if redundant
-			else:
-				img = img.reshape(img.shape + (1,))
+			if len(img.shape) > 2 and img.shape[2] > 1:  # convert to gray scale; not sure if necessary
+				img = img[::0]
 			self.images.append(img)
 		test_set_len = int(len(self.records) * test_percentage)
 		self.test_set = (self.images[:test_set_len], [x[1] for x in self.records[:test_set_len]])
