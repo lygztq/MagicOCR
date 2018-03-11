@@ -27,24 +27,24 @@ class CRNN(object):
         seqLength = tf.placeholder(tf.int32, [None], name='seqLength')
 
         # CNN layers
-        conv_layer1 = layers.conv2d(inputs=input, 64, kernel_size=(3,3), strides=1, padding="SAME")
+        conv_layer1 = layers.conv2d(inputs=input, filters=64, kernel_size=(3,3), strides=1, padding="SAME")
         pool_layer1 = layers.max_pooling2d(inputs=conv_layer1, pool_size=(2, 2), strides=2)
 
-        conv_layer2 = layers.conv2d(inputs=pool_layer1, 128, kernel_size=(3,3), strides=1, padding="SAME")
+        conv_layer2 = layers.conv2d(inputs=pool_layer1, filters=128, kernel_size=(3,3), strides=1, padding="SAME")
         pool_layer2 = layers.max_pooling2d(inputs=conv_layer2, pool_size=(2, 2), strides=2)
 
-        conv_layer3 = layers.conv2d(inputs=pool_layer2, 256, kernel_size=(3, 3), strides=1, padding="SAME")
-        conv_layer4 = layers.conv2d(inputs=conv_layer3, 256, kernel_size=(3, 3), strides=1, padding="SAME")
+        conv_layer3 = layers.conv2d(inputs=pool_layer2, filters=256, kernel_size=(3, 3), strides=1, padding="SAME")
+        conv_layer4 = layers.conv2d(inputs=conv_layer3, filters=256, kernel_size=(3, 3), strides=1, padding="SAME")
         pool_layer3 = layers.max_pooling2d(inputs=conv_layer4, pool_size=(1,2), strides=2)
 
-        conv_layer5 = layers.conv2d(inputs=pool_layer3, 512, kernel_size=(3, 3), strides=1, padding="SAME")
+        conv_layer5 = layers.conv2d(inputs=pool_layer3, filters=512, kernel_size=(3, 3), strides=1, padding="SAME")
         batch_normalize1 = layers.batch_normalization(conv_layer5)
 
-        conv_layer6 = layers.conv2d(inputs=batch_normalize1, 512, kernel_size=(3,3), strides=1, padding="SAME")
+        conv_layer6 = layers.conv2d(inputs=batch_normalize1, filters=512, kernel_size=(3,3), strides=1, padding="SAME")
         batch_normalize2 = layers.batch_normalization(conv_layer6)
         pool_layer4 = layers.max_pooling2d(inputs=batch_normalize2, pool_size=(1,2), strides=2)
 
-        conv_layer7 = layers.conv2d(inputs=pool_layer4, 512, kernel_size=(2,2), strides=1, padding="VALID")
+        conv_layer7 = layers.conv2d(inputs=pool_layer4, filters=512, kernel_size=(2,2), strides=1, padding="VALID")
 
         # Map to sequence
         sequlize_1 = tf.squeeze(conv_layer7, [1])  # Removes dimensions of size 1 from the shape of a tensor
