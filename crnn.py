@@ -8,7 +8,8 @@ from MagicOCR.data_ops import manager
 from utils import label_to_array, levenshtein, sparse_tuple_from, ground_truth_to_word
 
 class CRNN(object):
-    def __init__(self, batch_size, epoches, data_path, log_path):
+    def __init__(self, batch_size, epoches, data_path, log_path, model_path):
+        self.model_path = model_path
         self.log_path = log_path
         self.batch_size = batch_size
         self.epoches = epoches
@@ -93,14 +94,14 @@ class CRNN(object):
             log_writer = tf.summary.FileWriter(self.log_path, sess.graph)
             for i in xrange(self.epoches): # use xrange to reduce the cost of memory
                 iteration_loss = 0
-                for batch_x, batch_y, batch_length in self.data.get_next_train_batch():  #TODO1
-                    data_targets = np.asarray([label_to_array(label, config.CHAR_DICTIONARYS) for label in batch_y])
-                    data_targets = sparse_tuple_from(data_targets)
-                    temp3, loss_val, predict_str, summary = self.sess.run(
-                        [self.optimizer, self.losses, self.decoded,self.summary],
-                        feed_dict = {self.inputs:batch_x, self.targets:data_targets, self.seq_len:batch_length}
-                    )
-                    iteration_loss += loss_val
+                batch_x, batch_y = self.data.get_next_train_batch(self.batch_size):
+                batch_length = [len(x) for x in batch_y]
+                data_targets = sparse_tuple_from(batch_y)
+                temp3, loss_val, predict_str, summary = self.sess.run(
+                    [self.optimizer, self.losses, self.decoded,self.summary],
+                    feed_dict = {self.inputs:batch_x, self.targets:data_targets, self.seq_len:batch_length}
+                )
+                iteration_loss += loss_val
                 log_writer.add_summary(summary, i)
                 print "Iteration {} : loss: {}".format(i, iteration_loss)
         return None
@@ -110,24 +111,25 @@ class CRNN(object):
         with self.sess.as_default():
             example_count = 0
             total_error = 0
-            for batch_x, batch_y, batch_length in self.data.get_next_test_batch():  #TODO2
-                data_targets = np.asarray([label_to_array(label, config.CHAR_DICTIONARYS) for label in batch_y])
-                data_targets = sparse_tuple_from(data_targets)
-                predict_str = self.sess.run(
-                    [self.decoded],
-                    feed_dict={self.inputs:batch_x, self.seq_len:batch_length}
-                )
-                example_count += len(batch_y)
-                total_error += np.sum(levenshtein(ground_truth_to_word(batch_y), ground_truth_to_word(decoded)))
+            batch_x, batch_y = self.data.get_next_test_batch(self.batch_size):
+            batch_length = [len(x) for x in batch_y]
+            data_targets = sparse_tuple_from(data_targets)
+            predict_str = self.sess.run(
+                [self.decoded],
+                feed_dict={self.inputs:batch_x, self.seq_len:batch_length}
+            )
+            example_count += len(batch_y)
+            total_error += np.sum(levenshtein(ground_truth_to_word(batch_y), ground_truth_to_word(decoded)))
             print "Error on test set: {}".format(total_error/example_count)
         return None
 
     def save(self):
         saver = tf.train.Saver()
-        saver.save(self.sess, "model/crnn.model")
+        saver.save(self.sess, self.model_path+"/crnn.model")
 
     def load(self):
-        ckpt = tf.train.latest_checkpoint("model")
+        saver = tf.train.Saver()
+        ckpt = tf.train.latest_checkpoint(self.model_path)
         if ckpt: saver.restore(self.sess, ckpt)
 
 
