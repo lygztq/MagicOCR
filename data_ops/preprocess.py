@@ -6,14 +6,18 @@ from PIL import Image
 from scipy import misc
 
 import loader
-from MagicOCR import utils
+import utils
+
+RESIZE_WIDTH = 32
 
 def rgb2grey(img):
-	return resize(0.299 * img[:, :, 0] + 0.587 * img[:, :, 1] + 0.114 * img[:, :, 2], 32)
+	grey_img = 0.299 * img[:, :, 0] + 0.587 * img[:, :, 1] + 0.114 * img[:, :, 2]
+	return resize(grey_img)
 
-def resize(img, width=32):
-	ratio = img.shape[0]*1.0/32
-	img = pow_trans(misc.resize(img, ratio))
+def resize(img, width=RESIZE_WIDTH):
+	ratio = width*1.0/img.shape[0]
+	#print ratio
+	img = pow_trans(misc.imresize(img, ratio, interp='bicubic'))
 	return img
 
 def pow_trans(img):
@@ -116,11 +120,25 @@ def process_folders(text_folder, image_folder, target_image_folder, target_text_
 		print 'processing {} of {}'.format(i, len(imglist))
 		counter = 0
 		for img, text in process_image(name, ext, text_folder, image_folder):
-			newname = '{}_{:03}{}'.format(name, counter, ext)
+			newname_origin = '{}_{:03}_1{}'.format(name, counter, ext)
+			newname_rotate = '{}_{:03}_2{}'.format(name, counter, ext)
+			rotate_img = np.transpose(img,(1,0,2))
+
 			if len(img.shape) == 3 and img.shape[-1] >= 3:  # not gray scale, need conversion
 				img = IMAGE_PROCESS_METHOD(img)
-			cv2.imwrite(os.path.join(target_image_folder, newname), img)
-			mapping[newname] = text
+				rotate_img = IMAGE_PROCESS_METHOD(rotate_img)
+			flag1 = True
+			flag2 = True
+			if img.shape[0] < RESIZE_WIDTH/2 or img.shape[1] < RESIZE_WIDTH/2: flag1 = False
+			if rotate_img.shape[0] < RESIZE_WIDTH or rotate_img.shape[1] < RESIZE_WIDTH: flag2 = False
+
+			if flag1:
+				cv2.imwrite(os.path.join(target_image_folder, newname_origin), img)
+				mapping[newname_origin] = text
+
+			if flag2:
+				cv2.imwrite(os.path.join(target_image_folder, newname_rotate), rotate_img)
+				mapping[newname_rotate] = text
 			counter += 1
 	with open(target_text_file, 'w') as fout:
 		print 'writing relationships'
@@ -132,7 +150,11 @@ def main():
 		os.mkdir('./test/')
 	except Exception as e:
 		print e.message
-	process_folders('../../data/txt_1000', '../../data/image_1000', './test/', './test_data')
+	if not os.path.exists('../data/slices'):
+		os.mkdir('../data/slices')
+	process_folders('../data/test_txt', '../data/test_image', '../data/slices', 'relationship')
+	#process_folders('../data/txt_1000', '../data/image_1000', '../data/slices', 'relationship')
+	#process_folders('../../data/txt_1000', '../../data/image_1000', './test/', './test_data')
 
 if __name__ == '__main__':
 	main()
