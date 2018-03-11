@@ -96,7 +96,7 @@ class CRNN(object):
                 iteration_loss = 0
                 batch_x, batch_y = self.data.get_next_train_batch(self.batch_size):
                 batch_length = [len(x) for x in batch_y]
-                data_targets = np.asarray([label_to_array(label, config.CHAR_DICTIONARYS) for label in batch_y])
+                data_targets = np.asarray([label_to_array(label, config.CHAR_DICTIONARY) for label in batch_y])
                 data_targets = sparse_tuple_from(data_targets)
                 temp3, loss_val, predict_str, summary = self.sess.run(
                     [self.optimizer, self.losses, self.decoded,self.summary],
@@ -114,7 +114,7 @@ class CRNN(object):
             total_error = 0
             batch_x, batch_y = self.data.get_next_test_batch(self.batch_size):
             batch_length = [len(x) for x in batch_y]
-            data_targets = np.asarray([label_to_array(label, config.CHAR_DICTIONARYS) for label in batch_y])
+            data_targets = np.asarray([label_to_array(label, config.CHAR_DICTIONARY) for label in batch_y])
             data_targets = sparse_tuple_from(data_targets)
             predict_str = self.sess.run(
                 [self.decoded],
