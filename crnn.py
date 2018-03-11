@@ -1,19 +1,18 @@
 import tensorflow as tf
-from tensorflow.contrib import layers
+from tensorflow import layers
 from tensorflow.contrib import rnn
 import numpy as np
-
-from MagicOCR import config
-from MagicOCR.data_ops import manager
+import config
+from data_ops import manager
 from utils import label_to_array, levenshtein, sparse_tuple_from, ground_truth_to_word
 
 class CRNN(object):
-    def __init__(self, batch_size, epoches, data_path, log_path, model_path):
+    def __init__(self, batch_size, epoches, data_path, text_path, log_path, model_path):
         self.model_path = model_path
         self.log_path = log_path
         self.batch_size = batch_size
         self.epoches = epoches
-        self.data = manager.DataManager(data_path, batch_size)
+        self.data = manager.DataManager(data_path, text_path)
 
         self.sess = tf.Session()
 
@@ -22,7 +21,7 @@ class CRNN(object):
             self.initlizer.run()
 
     def build_model(self):
-        input = tf.placeholder(tf.float32, [self.batch_size, 32, -1, 1])
+        input = tf.placeholder(tf.float32, [self.batch_size, config.PIC_WIDTH, None, 1])
         target = tf.sparse_placeholder(tf.int32, name='targets')
         seqLength = tf.placeholder(tf.int32, [None], name='seqLength')
 
@@ -66,7 +65,7 @@ class CRNN(object):
         predict_out = tf.transpose(logits, (1, 0, 2))  #  Permutes the dimensions according to perm(axis location arrange)
 
         # loss value to be optimized
-        loss = tf.reduce_mean(tf.nn.ctc_loss(target, self.predict_out, seqLength))
+        loss = tf.reduce_mean(tf.nn.ctc_loss(target, predict_out, seqLength))
         tf.summary.scalar("loss", loss)
 
         # optimizer
@@ -76,7 +75,7 @@ class CRNN(object):
         predict_string, prob = tf.nn.ctc_beam_search_decoder(predict_out, seqLength)
 
         # accuracy for string predict
-        acc = tf.reduce_mean(tf.edit_distance(tf.cast(self.predict_string[0], tf.int32), target))
+        acc = tf.reduce_mean(tf.edit_distance(tf.cast(predict_string[0], tf.int32), target))
         tf.summary.scalar("accuracy", acc)
 
         # init
@@ -91,15 +90,18 @@ class CRNN(object):
     def train(self):
         with self.sess.as_default():
             # log file writer
-            log_writer = tf.summary.FileWriter(self.log_path, sess.graph)
+            log_writer = tf.summary.FileWriter(self.log_path, self.sess.graph)
             for i in xrange(self.epoches): # use xrange to reduce the cost of memory
                 iteration_loss = 0
-                batch_x, batch_y = self.data.get_next_train_batch(self.batch_size):
-                batch_length = [len(x) for x in batch_y]
-                data_targets = sparse_tuple_from(batch_y)
-                temp3, loss_val, predict_str, summary = self.sess.run(
+                batch_x, batch_y, batch_length = self.data.get_next_train_batch(self.batch_size)
+                data_targets,_, _ = sparse_tuple_from(batch_y)
+                batch_length = np.array(batch_length)
+                print len(batch_x), data_targets.shape, batch_length.shape
+                _, loss_val, predict_str, summary = self.sess.run(
                     [self.optimizer, self.losses, self.decoded,self.summary],
-                    feed_dict = {self.inputs:batch_x, self.targets:data_targets, self.seq_len:batch_length}
+                    feed_dict = {self.inputs:batch_x,
+                        self.targets:data_targets,
+                        self.seq_len:batch_length}
                 )
                 iteration_loss += loss_val
                 log_writer.add_summary(summary, i)
@@ -111,9 +113,8 @@ class CRNN(object):
         with self.sess.as_default():
             example_count = 0
             total_error = 0
-            batch_x, batch_y = self.data.get_next_test_batch(self.batch_size):
-            batch_length = [len(x) for x in batch_y]
-            data_targets = sparse_tuple_from(data_targets)
+            batch_x, batch_y,batch_length = self.data.get_next_test_batch(self.batch_size)
+            data_targets = sparse_tuple_from(batch_y)
             predict_str = self.sess.run(
                 [self.decoded],
                 feed_dict={self.inputs:batch_x, self.seq_len:batch_length}

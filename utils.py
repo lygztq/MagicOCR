@@ -1,7 +1,8 @@
-from MagicOCR import config
+import config
 import numpy as np
 
 def label_to_array(label, letters):
+	return [0 for x in label]
 	return [letters.index(x) for x in label]
 
 def sparse_tuple_from(sequences, dtype = np.int32):

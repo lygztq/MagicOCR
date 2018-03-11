@@ -6,7 +6,7 @@ from PIL import Image
 from scipy import misc
 
 import loader
-import utils
+from MagicOCR import utils
 
 RESIZE_WIDTH = 32
 
@@ -18,7 +18,7 @@ def resize(img, width=RESIZE_WIDTH):
 	ratio = width*1.0/img.shape[0]
 	new_size = (width, max(int(ratio*img.shape[1]), 1))
 	#print ratio
-	img = pow_trans(misc.imresize(img, ratio, interp='bicubic'))
+	img = pow_trans(misc.imresize(img, new_size, interp='bicubic'))
 	return img
 
 def pow_trans(img):
@@ -144,7 +144,7 @@ def process_folders(text_folder, image_folder, target_image_folder, target_text_
 					mapping[newname_rotate] = text
 				counter += 1
 			except Exception as e:
-				print "Error when processing: {}_{}".format(name, counter), "\terror: ", e.message 
+				print "Error when processing: {}_{}".format(name, counter), e.message
 	with open(target_text_file, 'w') as fout:
 		print 'writing relationships'
 		fout.writelines(('{}\t{}\n'.format(k, v) for k, v in mapping.items()))
@@ -157,8 +157,8 @@ def main():
 		print e.message
 	if not os.path.exists('../data/slices'):
 		os.mkdir('../data/slices')
-	process_folders('../data/test_txt', '../data/test_image', '../data/slices', '../data/relationship')
-	#process_folders('../data/txt_1000', '../data/image_1000', '../data/slices', '../data/relationship')
+	#process_folders('../data/test_txt', '../data/test_image', '../data/slices', '../data/relationship')
+	process_folders('../data/txt_1000', '../data/image_1000', '../data/slices', '../data/relationship')
 	#process_folders('../../data/txt_1000', '../../data/image_1000', './test/', './test_data')
 
 if __name__ == '__main__':

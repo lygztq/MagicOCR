@@ -1,6 +1,7 @@
 import os
 import random
 
+import cv2
 import numpy as np
 from PIL import Image
 
@@ -22,17 +23,19 @@ class DataManager(object):
 				split = line.strip().split('\t')
 				assert len(split) >= 1
 				label = utils.label_to_array('\t'.join(split[1:]).decode('utf8'), config.CHAR_DICTIONARY)
-				self.records.append((split[0], label))
-		for filename, _ in self.records:
-			img = np.array(Image.open(os.path.join(data_path, filename)))
+				self.records.append([split[0], label, 0])
+		for x in self.records:
+			img = np.array(Image.open(os.path.join(data_path, x[0])))
+			x[2] = img.shape[1]
+			img = cv2.resize(img, (32, 800)).transpose()
 			if len(img.shape) > 2 and img.shape[2] > 1:
 				img = img[::0]  # convert to gray scale; not sure if redundant
 			else:
 				img = img.reshape(img.shape + (1,))
 			self.images.append(img)
 		test_set_len = int(len(self.records) * test_percentage)
-		self.test_set = (self.images[:test_set_len], [x[1] for x in self.records[:test_set_len]])
-		self.training_set = (self.images[test_set_len:], [x[1] for x in self.records[test_set_len:]])
+		self.test_set = (self.images[:test_set_len], [x[1:] for x in self.records[:test_set_len]])
+		self.training_set = (self.images[test_set_len:], [x[1:] for x in self.records[test_set_len:]])
 
 	# data: [batch_size, 32, max_img_width, 1], [string1, string2, ..., stringBatch_size], [length1, length2, ...,lengthBatch_size]
 	def get_next_train_batch(self, batch_size = 128):
@@ -59,7 +62,9 @@ class DataManager(object):
 		:return: The two sets of selected items.
 		"""
 		indices = random.sample(range(len(target_set[0])), batch_size)
-		return np.array([target_set[0][i] for i in indices]), np.array([target_set[1][i] for i in indices])
+		return [target_set[0][i] for i in indices],\
+				[target_set[1][i][0] for i in indices],\
+				[target_set[1][i][1] for i in indices]
 
 def main():
 	dm = DataManager('test/', 'test_data')
